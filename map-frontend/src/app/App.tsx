@@ -1,20 +1,40 @@
 import { useState, useEffect, useRef } from 'react'
 import { YMaps, Map, Placemark, Polyline } from '@pbe/react-yandex-maps'
 
+interface Position {
+	coords: {
+		latitude: number
+		longitude: number
+		accuracy?: number
+		altitude?: number | null
+		altitudeAccuracy?: number | null
+		heading?: number | null
+		speed?: number | null
+	}
+	timestamp?: number
+}
+
+interface MapRef {
+	setCenter: (coordinates: [number, number]) => void
+	geoObjects?: unknown
+	events?: unknown
+	getBounds?: () => unknown
+}
+
 const TrackerMap = () => {
-	const [position, setPosition] = useState([55.75, 37.57]) // Начальные координаты (Москва)
-	const [tracking, setTracking] = useState(false)
-	const [path, setPath] = useState([])
-	const mapRef = useRef(null)
-	const watchId = useRef(null)
+	const [position, setPosition] = useState<[number, number]>([55.75, 37.57]) // Начальные координаты (Москва)
+	const [tracking, setTracking] = useState<boolean>(false)
+	const [path, setPath] = useState<[number, number][]>([])
+	const mapRef = useRef<MapRef | null>(null)
+	const watchId = useRef<number | null>(null)
 
 	// Функция успешного получения геолокации
-	const handleSuccess = pos => {
+	const handleSuccess = (pos: Position) => {
 		const { latitude, longitude } = pos.coords
-		const newPosition = [latitude, longitude]
+		const newPosition: [number, number] = [latitude, longitude]
 		setPosition(newPosition)
 		setPath(prev => [...prev, newPosition])
-		console.log('123')
+
 		// Автоматическое перемещение карты
 		if (mapRef.current) {
 			mapRef.current.setCenter(newPosition)
@@ -22,7 +42,7 @@ const TrackerMap = () => {
 	}
 
 	// Функция обработки ошибок геолокации
-	const handleError = err => {
+	const handleError = (err: GeolocationPositionError) => {
 		console.error(`Ошибка геолокации: ${err.message}`)
 		alert('Не удалось получить ваше местоположение')
 	}
@@ -30,14 +50,17 @@ const TrackerMap = () => {
 	// Запуск/остановка отслеживания
 	const toggleTracking = () => {
 		if (tracking) {
-			navigator.geolocation.clearWatch(watchId.current)
+			if (watchId.current !== null) {
+				navigator.geolocation.clearWatch(watchId.current)
+			}
 			setTracking(false)
 		} else {
-			const options = {
+			const options: PositionOptions = {
 				enableHighAccuracy: true,
 				maximumAge: 0,
-				timeout: 5,
+				timeout: 5000,
 			}
+
 			watchId.current = navigator.geolocation.watchPosition(
 				handleSuccess,
 				handleError,
@@ -51,7 +74,7 @@ const TrackerMap = () => {
 	// Очистка при размонтировании
 	useEffect(() => {
 		return () => {
-			if (watchId.current) {
+			if (watchId.current !== null) {
 				navigator.geolocation.clearWatch(watchId.current)
 			}
 		}
